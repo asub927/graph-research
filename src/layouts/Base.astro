@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'Attention Journal', description = 'What I have been noticing, questioning, and revising.' } = Astro.props;
+const pageTitle = title === 'Attention Journal' ? title : `${title} · Attention Journal`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="alternate" type="application/feed+json" title="JSON Feed" href="/feed.json" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Attention Journal</a>
+      <nav>
+        <a href="/themes/">Themes</a>
+        <a href="/feed.json">Feed</a>
+        <a href="/llms.txt">llms.txt</a>
+        <a href="/openapi.json">OpenAPI</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <p>Dual-audience Attention Journal · humans + agents</p>
+    </footer>
+  </body>
+</html>

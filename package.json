@@ -1,0 +1,35 @@
+{
+  "name": "attention-journal",
+  "type": "module",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist && npm run verify:content",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest run",
+    "lint": "astro sync && tsc --noEmit",
+    "verify:content": "tsx scripts/verify-content.ts",
+    "weekly": "tsx scripts/weekly.ts",
+    "publish:item": "bash scripts/publish.sh",
+    "build:strict": "astro build && pagefind --site dist && npm run verify:content"
+  },
+  "dependencies": {
+    "astro": "^7.3.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.10",
+    "pagefind": "^1.3.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}

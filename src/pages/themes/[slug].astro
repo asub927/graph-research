@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getThemes } from '../../lib/themes';
+import { getPublicItems, itemPermalink } from '../../lib/items';
+import { render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const themes = await getThemes();
+  return themes.map((theme) => ({
+    params: { slug: theme.id },
+    props: { theme },
+  }));
+}
+
+const { theme } = Astro.props;
+const { Content } = await render(theme);
+const publicIds = new Set((await getPublicItems()).map((i) => i.id));
+const keyItems = theme.data.items.filter((id) => publicIds.has(id));
+---
+<Base title={theme.data.title} description={theme.data.currentThinking}>
+  <article class="theme-block">
+    <h1>{theme.data.title}</h1>
+    <p class="stance">{theme.data.currentThinking}</p>
+    <h2>Key items</h2>
+    <ul>
+      {keyItems.map((id) => (
+        <li><a href={itemPermalink(id)}>{id}</a></li>
+      ))}
+    </ul>
+    {theme.data.tensions.length > 0 && (
+      <>
+        <h2>Confirmed tensions</h2>
+        <ul>
+          {theme.data.tensions.map((t) => <li>{t}</li>)}
+        </ul>
+      </>
+    )}
+    <div class="body">
+      <Content />
+    </div>
+  </article>
+</Base>

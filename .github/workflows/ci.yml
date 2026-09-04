@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+      - run: npm ci
+      - run: npx astro sync
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - name: Assert Pagefind index exists
+        run: test -f dist/pagefind/pagefind.js || test -f dist/pagefind/pagefind-entry.json || ls dist/pagefind | grep -q .
+      - name: Lint generated OpenAPI
+        run: npx --yes @redocly/cli lint dist/openapi.json

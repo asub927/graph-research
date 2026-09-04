@@ -1,0 +1,38 @@
+---
+import Base from '../../layouts/Base.astro';
+import TrailList from '../../components/TrailList.astro';
+import { getPublicItems, itemPermalink } from '../../lib/items';
+import { getTrailsForItem } from '../../lib/trails';
+import { render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const items = await getPublicItems();
+  return items.map((item) => ({
+    params: { id: item.id },
+    props: { item },
+  }));
+}
+
+const { item } = Astro.props;
+const { Content } = await render(item);
+const trails = await getTrailsForItem(item.id);
+---
+<Base title={item.data.title} description={item.data.stance}>
+  <article>
+    <div class="meta">
+      <span class="type-badge">{item.data.type}</span>
+      <time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time>
+      {item.data.context && <span>{item.data.context}</span>}
+    </div>
+    <h1>{item.data.title}</h1>
+    <p class="stance">{item.data.stance}</p>
+    {item.data.url && (
+      <p><a href={item.data.url} rel="noopener noreferrer">Source link</a></p>
+    )}
+    <div class="body">
+      <Content />
+    </div>
+    <TrailList itemId={item.id} trails={trails} />
+    <p><a href="/">← Back to stream</a> · <code>{itemPermalink(item.id)}</code></p>
+  </article>
+</Base>

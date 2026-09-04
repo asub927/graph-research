@@ -1,0 +1,5 @@
+from: one-command-publish
+to: flaky-ci
+type: challenges
+reason: Habit-protecting publish friction fights the ritual of chasing every flake in public notes.
+date: 2026-09-03

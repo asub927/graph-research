@@ -1,0 +1,10 @@
+suggestions:
+  - kind: trail
+    from: one-command-publish
+    to: flaky-ci
+    type: supports
+  - kind: theme
+    title: Sample suggested theme
+    items:
+      - one-command-publish
+      - flaky-ci
