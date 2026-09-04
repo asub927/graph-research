@@ -7,20 +7,19 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && pagefind --site dist || true && npm run verify:content",
-    "build:strict": "astro build && pagefind --site dist && npm run verify:content",
+    "build": "astro build && pagefind --site dist && npm run verify:content",
     "preview": "astro preview",
     "astro": "astro",
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "verify:content": "tsx scripts/verify-content.ts",
     "weekly": "tsx scripts/weekly.ts",
-    "publish:item": "bash scripts/publish.sh"
+    "publish:item": "bash scripts/publish.sh",
+    "build:strict": "astro build && pagefind --site dist && npm run verify:content"
   },
   "dependencies": {
     "astro": "^7.3.1",
-    "js-yaml": "^4.1.0",
-    "zod": "^3.25.0"
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
