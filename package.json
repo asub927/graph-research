@@ -11,7 +11,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "test": "vitest run",
-    "lint": "tsc --noEmit",
+    "lint": "astro sync && tsc --noEmit",
     "verify:content": "tsx scripts/verify-content.ts",
     "weekly": "tsx scripts/weekly.ts",
     "publish:item": "bash scripts/publish.sh",
