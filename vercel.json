@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run db:migrate && next build",
+  "functions": {
+    "src/app/api/ingest/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": []
+}
