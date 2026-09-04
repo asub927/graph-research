@@ -1,6 +1,7 @@
 ---
 import { itemPermalink } from '../lib/items';
 import { otherItemId, type TrailEntry } from '../lib/trails';
+import { getPublicItems } from '../lib/items';
 
 interface Props {
   itemId: string;
@@ -8,12 +9,14 @@ interface Props {
 }
 
 const { itemId, trails } = Astro.props;
+const publicIds = new Set((await getPublicItems()).map((i) => i.id));
+const visible = trails.filter((trail) => publicIds.has(otherItemId(trail, itemId)));
 ---
-{trails.length > 0 && (
+{visible.length > 0 && (
   <section class="trails">
     <h2>Local trails</h2>
     <ul>
-      {trails.map((trail) => {
+      {visible.map((trail) => {
         const other = otherItemId(trail, itemId);
         return (
           <li>

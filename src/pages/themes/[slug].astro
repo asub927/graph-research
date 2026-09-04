@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { getThemes } from '../../lib/themes';
-import { itemPermalink } from '../../lib/items';
+import { getPublicItems, itemPermalink } from '../../lib/items';
 import { render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -14,6 +14,8 @@ export async function getStaticPaths() {
 
 const { theme } = Astro.props;
 const { Content } = await render(theme);
+const publicIds = new Set((await getPublicItems()).map((i) => i.id));
+const keyItems = theme.data.items.filter((id) => publicIds.has(id));
 ---
 <Base title={theme.data.title} description={theme.data.currentThinking}>
   <article class="theme-block">
@@ -21,7 +23,7 @@ const { Content } = await render(theme);
     <p class="stance">{theme.data.currentThinking}</p>
     <h2>Key items</h2>
     <ul>
-      {theme.data.items.map((id) => (
+      {keyItems.map((id) => (
         <li><a href={itemPermalink(id)}>{id}</a></li>
       ))}
     </ul>
