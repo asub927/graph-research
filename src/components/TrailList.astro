@@ -1,0 +1,32 @@
+---
+import { itemPermalink } from '../lib/items';
+import { otherItemId, type TrailEntry } from '../lib/trails';
+
+interface Props {
+  itemId: string;
+  trails: TrailEntry[];
+}
+
+const { itemId, trails } = Astro.props;
+---
+{trails.length > 0 && (
+  <section class="trails">
+    <h2>Local trails</h2>
+    <ul>
+      {trails.map((trail) => {
+        const other = otherItemId(trail, itemId);
+        return (
+          <li>
+            <strong>{trail.data.type}</strong>
+            {' → '}
+            <a href={itemPermalink(other)}>{other}</a>
+            <div>{trail.data.reason}</div>
+            <div class="meta">
+              <time datetime={trail.data.date.toISOString()}>{trail.data.date.toISOString().slice(0, 10)}</time>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+)}

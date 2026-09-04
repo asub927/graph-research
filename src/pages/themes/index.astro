@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getThemes } from '../../lib/themes';
+
+const themes = await getThemes();
+---
+<Base title="Themes" description="Authored theme hubs that earned their existence.">
+  <section class="hero">
+    <h1>Themes</h1>
+    <p>Hubs appear when a topic recurs and survives the weekly compounding pass — not a prebuilt taxonomy.</p>
+  </section>
+  <ul class="stream">
+    {themes.map((theme) => (
+      <li class="stream-item">
+        <h2><a href={`/themes/${theme.id}/`}>{theme.data.title}</a></h2>
+        <p class="stance">{theme.data.currentThinking}</p>
+      </li>
+    ))}
+  </ul>
+</Base>

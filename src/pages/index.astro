@@ -1,0 +1,28 @@
+---
+import Base from '../layouts/Base.astro';
+import { getPublicItems, itemPermalink } from '../lib/items';
+
+const items = await getPublicItems();
+---
+<Base>
+  <section class="hero">
+    <h1>Attention Journal</h1>
+    <p>A chronological record of what I have been noticing, questioning, and revising — annotated links first, with stance on every public item.</p>
+  </section>
+
+  <ol class="stream">
+    {items.map((item) => (
+      <li class="stream-item">
+        <div class="meta">
+          <span class="type-badge">{item.data.type}</span>
+          <time datetime={item.data.date.toISOString()}>{item.data.date.toISOString().slice(0, 10)}</time>
+        </div>
+        <h2><a href={itemPermalink(item.id)}>{item.data.title}</a></h2>
+        <p class="stance">{item.data.stance}</p>
+        {item.data.url && (
+          <p><a href={item.data.url} rel="noopener noreferrer">Source</a></p>
+        )}
+      </li>
+    ))}
+  </ol>
+</Base>
