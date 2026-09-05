@@ -1,35 +1,54 @@
 {
-  "name": "attention-journal",
-  "type": "module",
+  "name": "fyi",
   "version": "0.1.0",
-  "engines": {
-    "node": ">=22.19.0"
-  },
+  "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build && pagefind --site dist && npm run verify:content",
-    "preview": "astro preview",
-    "astro": "astro",
-    "test": "vitest run",
-    "lint": "astro sync && tsc --noEmit",
-    "verify:content": "tsx scripts/verify-content.ts",
-    "weekly": "tsx scripts/weekly.ts",
-    "publish:item": "bash scripts/publish.sh",
-    "build:strict": "astro build && pagefind --site dist && npm run verify:content"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "backfill": "tsx scripts/backfill.ts",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "astro": "^7.3.1",
-    "js-yaml": "^4.1.0"
+    "@electric-sql/pglite": "^0.2.17",
+    "@mozilla/readability": "^0.5.0",
+    "d3-drag": "^3.0.0",
+    "d3-force": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "d3-transition": "^3.0.1",
+    "d3-zoom": "^3.0.0",
+    "jsdom": "^24.1.3",
+    "marked": "^14.1.4",
+    "next": "^15.1.6",
+    "pg": "^8.13.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.13.10",
-    "pagefind": "^1.3.0",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
-    "vitest": "^3.0.8"
+    "@eslint/eslintrc": "^3.3.7",
+    "@types/d3-drag": "^3.0.7",
+    "@types/d3-force": "^3.0.10",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-transition": "^3.0.9",
+    "@types/d3-zoom": "^3.0.8",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.6",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.25",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   },
-  "allowScripts": {
-    "esbuild": true
+  "engines": {
+    "node": ">=20"
   }
 }
