@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { drag } from 'd3-drag';
 import {
   forceCenter,
@@ -84,8 +84,8 @@ function nodeRadius(connections: number): number {
 
 interface TooltipState {
   node: Node;
-  x: number;
-  y: number;
+  /** Offsets within the frame, already flipped to keep the box inside it. */
+  placement: CSSProperties;
   pinned: boolean;
 }
 
@@ -132,23 +132,16 @@ export function GraphView({ focusId }: { focusId?: string }) {
         : [];
     });
 
-    // Adjacency, used to dim unconnected nodes on hover and to collect the
-    // reasons shown in a tooltip.
+    // Adjacency, used to dim everything unconnected to the hovered node.
     const neighbours = new Map<string, Set<string>>();
-    const reasons = new Map<string, Array<{ type: EdgeType; reason: string }>>();
     for (const node of nodes) {
       neighbours.set(node.id, new Set([node.id]));
-      reasons.set(node.id, []);
     }
     for (const link of links) {
       const source = link.source as Node;
       const target = link.target as Node;
       neighbours.get(source.id)?.add(target.id);
       neighbours.get(target.id)?.add(source.id);
-      if (link.type !== 'related_to') {
-        reasons.get(source.id)?.push({ type: link.type, reason: link.reason });
-        reasons.get(target.id)?.push({ type: link.type, reason: link.reason });
-      }
     }
 
     const svg = select(svgRef.current);
@@ -223,10 +216,24 @@ export function GraphView({ focusId }: { focusId?: string }) {
       // Position from the node's simulation coordinates mapped through the
       // current zoom transform, so the tooltip tracks the node when zoomed.
       const transform = currentTransform;
-      const scaleX = frame.clientWidth / WIDTH;
-      const x = (transform.applyX(node.x ?? 0)) * scaleX;
-      const y = (transform.applyY(node.y ?? 0)) * (frame.clientHeight / HEIGHT);
-      setTooltip({ node, x, y, pinned });
+      const x = transform.applyX(node.x ?? 0) * (frame.clientWidth / WIDTH);
+      const y = transform.applyY(node.y ?? 0) * (frame.clientHeight / HEIGHT);
+
+      // The frame clips its overflow, so past the halfway mark the box has to
+      // grow back towards the middle or it lands outside and disappears —
+      // which is what a node low in the frame used to do. Anchoring the far
+      // edge instead of clamping the near one means the tooltip's own height,
+      // which varies with how many reasons it carries, is never measured.
+      const placement: CSSProperties = {
+        ...(x > frame.clientWidth / 2
+          ? { right: `${frame.clientWidth - x + 12}px` }
+          : { left: `${x + 12}px` }),
+        ...(y > frame.clientHeight / 2
+          ? { bottom: `${frame.clientHeight - y + 12}px` }
+          : { top: `${y - 8}px` }),
+      };
+
+      setTooltip({ node, placement, pinned });
     }
 
     nodeSelection
@@ -431,13 +438,7 @@ export function GraphView({ focusId }: { focusId?: string }) {
           }
         />
         {tooltip ? (
-          <div
-            className="graph-tooltip"
-            style={{
-              left: `${Math.min(Math.max(tooltip.x + 12, 8), 640)}px`,
-              top: `${Math.max(tooltip.y - 8, 8)}px`,
-            }}
-          >
+          <div className="graph-tooltip" style={tooltip.placement}>
             <div className="graph-tooltip-title">{tooltip.node.title}</div>
             <div className="graph-tooltip-meta">
               {tooltip.node.type} &middot; {tooltip.node.connections} connection
