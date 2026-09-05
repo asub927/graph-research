@@ -1,6 +1,6 @@
-import { query, toVector } from './db.ts';
+import { query, queryOne, toVector } from './db.ts';
 import { newIdentifier } from './shortid.ts';
-import { asBlockquote, markdownToText } from './markdown.ts';
+import { asBlockquote, markdownToText, splitBody } from './markdown.ts';
 import { embed } from './embeddings.ts';
 import { fetchAndExtract } from './extract.ts';
 import { generateSummary, judgeEdges, selectEdges, type EdgeCandidate } from './llm.ts';
@@ -24,6 +24,8 @@ export class PublishError extends Error {}
 
 export interface PublishResult {
   item: Item;
+  /** False when an item already existed for this source and was refreshed. */
+  created: boolean;
   edgesCreated: number;
   /** True when a model wrote the summary, false when it was extracted. */
   summaryGenerated: boolean;
@@ -97,6 +99,101 @@ async function insertItem(input: InsertItemInput): Promise<Item> {
     }
   }
   throw new PublishError('could not allocate a unique short id after 5 attempts');
+}
+
+/**
+ * Refresh the item already published for a URL, or return null if there is none.
+ *
+ * Capture is a paste-a-URL flow, so the same URL arrives twice: a retry after a
+ * timeout, a second pass over a reading list, a re-run after a prompt change.
+ * Inserting again would fork the source into two permalinks splitting one
+ * source's edges between them, so a repeat is a refresh of the item that
+ * exists.
+ *
+ * `published_at` and `short_id` are deliberately untouched: a permalink is
+ * permanent (R20) and the date the item entered the stream does not change
+ * because the pipeline ran again. `updated_at` records that it did.
+ *
+ * Commentary is preserved unless the caller supplies new commentary. The
+ * pipeline owns the blockquote summary and the author owns everything after
+ * it, which is the same division the backfill respects.
+ */
+async function refreshItemByUrl(
+  input: InsertItemInput & { url: string },
+): Promise<Item | null> {
+  const existing = await queryOne<{
+    id: string;
+    short_id: string;
+    content: string;
+    edge_count: number;
+  }>('SELECT id, short_id, content, edge_count FROM items WHERE url = $1', [input.url]);
+
+  if (!existing) return null;
+
+  const incoming = splitBody(input.content);
+  const previous = splitBody(existing.content);
+  const commentary = incoming.commentary || previous.commentary;
+  const content = [
+    incoming.summary ? asBlockquote(incoming.summary) : '',
+    commentary,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const rows = await query<{ published_at: unknown; updated_at: unknown }>(
+    `UPDATE items SET
+        type        = $2,
+        title       = $3,
+        content     = $4,
+        tags        = $5,
+        source_text = COALESCE($6, source_text),
+        updated_at  = now()
+      WHERE id = $1
+      RETURNING published_at, updated_at`,
+    [
+      existing.id,
+      input.type,
+      input.title,
+      content,
+      input.tags,
+      input.sourceText,
+    ],
+  );
+
+  const row = rows[0];
+  return {
+    id: existing.id,
+    shortId: existing.short_id,
+    type: input.type,
+    title: input.title,
+    content,
+    url: input.url,
+    tags: input.tags,
+    publishedAt: asDate(row?.published_at),
+    updatedAt: asDate(row?.updated_at),
+    edgeCount: Number(existing.edge_count),
+  };
+}
+
+function asDate(value: unknown): Date {
+  return value instanceof Date ? value : new Date(String(value));
+}
+
+/**
+ * Insert an item, or refresh the one already published for the same URL.
+ *
+ * This is what makes the pipeline re-runnable per item rather than merely
+ * repeatable: running it twice for one source converges on one item instead of
+ * accumulating duplicates.
+ */
+async function upsertItem(
+  input: InsertItemInput,
+): Promise<{ item: Item; created: boolean }> {
+  if (input.url !== null) {
+    const refreshed = await refreshItemByUrl({ ...input, url: input.url });
+    if (refreshed) return { item: refreshed, created: false };
+  }
+  return { item: await insertItem(input), created: true };
 }
 
 /**
@@ -242,7 +339,7 @@ export async function publishLink(input: PublishLinkInput): Promise<PublishResul
     .filter(Boolean)
     .join('\n\n');
 
-  const item = await insertItem({
+  const { item, created } = await upsertItem({
     type: 'link',
     title: input.title?.trim() || summary.title || sourceTitle,
     content,
@@ -257,6 +354,7 @@ export async function publishLink(input: PublishLinkInput): Promise<PublishResul
 
   return {
     item,
+    created,
     edgesCreated,
     summaryGenerated: summary.generated,
     edgesGenerated,
@@ -285,6 +383,7 @@ export async function publishRiff(input: PublishRiffInput): Promise<PublishResul
     throw new PublishError('a riff needs a body');
   }
 
+  // A riff has no URL to converge on, so every one is a new item.
   const item = await insertItem({
     type: 'riff',
     title: input.title?.trim() || null,
@@ -300,6 +399,7 @@ export async function publishRiff(input: PublishRiffInput): Promise<PublishResul
 
   return {
     item,
+    created: true,
     edgesCreated,
     summaryGenerated: false,
     edgesGenerated,
@@ -324,7 +424,7 @@ export async function publishEssay(input: PublishEssayInput): Promise<PublishRes
     throw new PublishError('an essay pointer needs commentary');
   }
 
-  const item = await insertItem({
+  const { item, created } = await upsertItem({
     type: 'essay',
     title: input.title.trim(),
     content: commentary,
@@ -339,6 +439,7 @@ export async function publishEssay(input: PublishEssayInput): Promise<PublishRes
 
   return {
     item,
+    created,
     edgesCreated,
     summaryGenerated: false,
     edgesGenerated,

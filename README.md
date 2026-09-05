@@ -66,6 +66,13 @@ neighbours as edge candidates, has a model assign each one a type, a confidence,
 and a written reason, applies a confidence floor and a per-item cap, then
 recomputes edge counts and theme eligibility and revalidates the affected pages.
 
+Posting a URL that is already published refreshes that item instead of creating
+a second one: same permalink, same publication date, `updated_at` set, and a
+`200` with `"created": false` rather than a `201`. The regenerated part is the
+blockquote summary; commentary is only replaced if the repeat supplies new
+commentary. So a retry after a timeout is safe, and re-running the pipeline over
+one item converges rather than accumulating duplicates.
+
 ## How it is put together
 
 ```

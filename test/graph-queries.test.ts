@@ -35,6 +35,7 @@ const {
   semanticSearch,
 } = await import('../src/lib/queries.ts');
 const { embeddingConfig, site } = await import('../src/lib/config.ts');
+const { publishLink } = await import('../src/lib/publish.ts');
 const { pruneRedundantRelatedEdges, recomputeDerived, recomputeEdgeCounts } =
   await import('../src/lib/derive.ts');
 const { edgeTypesForSection } = await import('../src/lib/types.ts');
@@ -463,3 +464,77 @@ describe('stream pagination', () => {
     assert.deepEqual(beyond.items, []);
   });
 });
+
+/**
+ * Capture is a paste-a-URL flow, so the same URL arrives more than once. The
+ * pipeline has to converge on one item per source instead of forking it into
+ * two permalinks that split one source's edges between them.
+ *
+ * `sourceText` is supplied so these run the real pipeline without reaching the
+ * network for a page that does not exist.
+ */
+describe('re-publishing the same source', () => {
+  const url = 'https://example.com/one-true-source';
+
+  it('refreshes the existing item rather than creating a second one', async () => {
+    const first = await publishLink({
+      url,
+      sourceText: 'A long enough piece of prose about retrieval and chunking to summarise.',
+      sourceTitle: 'One True Source',
+      commentary: 'What I thought the first time.',
+    });
+    assert.equal(first.created, true);
+
+    const second = await publishLink({
+      url,
+      sourceText: 'A long enough piece of prose about retrieval and chunking to summarise.',
+      sourceTitle: 'One True Source',
+    });
+    assert.equal(second.created, false);
+
+    // The permalink is permanent, so it must be the same one.
+    assert.equal(second.item.shortId, first.item.shortId);
+    assert.equal(second.item.publishedAt.getTime(), first.item.publishedAt.getTime());
+    assert.ok(second.item.updatedAt, 'a refresh should record updated_at');
+
+    const [{ count }] = await query<{ count: string }>(
+      'SELECT count(*) AS count FROM items WHERE url = $1',
+      [url],
+    );
+    assert.equal(Number(count), 1);
+  });
+
+  it('keeps the commentary when the repeat supplies none', async () => {
+    // The pipeline owns the blockquote summary; the author owns what follows.
+    // A retry that carries no commentary must not erase what was written.
+    const item = await getItemByUrl(url);
+    assert.ok(item.content.includes('What I thought the first time.'));
+  });
+
+  it('replaces the commentary when the repeat supplies new commentary', async () => {
+    await publishLink({
+      url,
+      sourceText: 'A long enough piece of prose about retrieval and chunking to summarise.',
+      sourceTitle: 'One True Source',
+      commentary: 'What I think now, having reread it.',
+    });
+
+    const item = await getItemByUrl(url);
+    assert.ok(item.content.includes('What I think now, having reread it.'));
+    assert.ok(!item.content.includes('What I thought the first time.'));
+  });
+
+  it('still carries a blockquoted summary after every pass', async () => {
+    const item = await getItemByUrl(url);
+    assert.match(item.content, /^>/);
+  });
+});
+
+async function getItemByUrl(url: string): Promise<{ content: string }> {
+  const [row] = await query<{ content: string }>(
+    'SELECT content FROM items WHERE url = $1',
+    [url],
+  );
+  assert.ok(row, `no item stored for ${url}`);
+  return row;
+}

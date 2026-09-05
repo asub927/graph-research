@@ -19,7 +19,7 @@ import {
   problemSchema,
   semanticSearchSchema,
 } from '../src/lib/api-schema.ts';
-import { splitBody } from '../scripts/backfill.ts';
+import { splitBody } from '../src/lib/markdown.ts';
 import { ALTERNATE_TYPES, pageMetadata } from '../src/lib/seo.ts';
 
 /**
@@ -228,7 +228,7 @@ describe('content negotiation', () => {
   });
 });
 
-describe('backfill body splitting', () => {
+describe('item body splitting', () => {
   /**
    * The backfill has to replace the generated summary without touching the
    * commentary underneath it. Getting the boundary wrong either discards what

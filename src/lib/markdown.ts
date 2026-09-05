@@ -65,6 +65,34 @@ export function asBlockquote(text: string): string {
     .join('\n>\n');
 }
 
+/**
+ * Split an item body into its generated summary and its authored commentary.
+ *
+ * `asBlockquote` above fixes the convention this reads back: the summary is a
+ * leading blockquote, and anything after the first unquoted line is the
+ * author's. A body that does not start with a blockquote has no generated part
+ * at all — a riff, or an essay pointer — and is entirely authored.
+ *
+ * Both re-publishing an item and backfilling the corpus need this boundary,
+ * because both regenerate the summary and neither may touch the commentary.
+ */
+export function splitBody(content: string): { summary: string; commentary: string } {
+  const lines = content.split('\n');
+  let index = 0;
+  while (index < lines.length && /^\s*>/.test(lines[index]!)) index += 1;
+
+  if (index === 0) return { summary: '', commentary: content.trim() };
+
+  return {
+    summary: lines
+      .slice(0, index)
+      .map((line) => line.replace(/^\s*>\s?/, ''))
+      .join('\n')
+      .trim(),
+    commentary: lines.slice(index).join('\n').trim(),
+  };
+}
+
 /** Host portion of a URL, without `www.`, as shown beside stream items. */
 export function displayDomain(url: string): string {
   try {

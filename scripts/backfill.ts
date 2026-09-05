@@ -25,7 +25,7 @@ import { connectItem } from '../src/lib/publish.ts';
 import { recomputeDerived } from '../src/lib/derive.ts';
 import { generateSummary, isLlmConfigured } from '../src/lib/llm.ts';
 import { isEmbeddingProviderConfigured } from '../src/lib/embeddings.ts';
-import { asBlockquote } from '../src/lib/markdown.ts';
+import { asBlockquote, splitBody } from '../src/lib/markdown.ts';
 import type { Item } from '../src/lib/types.ts';
 
 interface Options {
@@ -43,31 +43,6 @@ function parseOptions(argv: readonly string[]): Options {
     resummarise: argv.includes('--resummarise') || argv.includes('--resummarize'),
     dryRun: argv.includes('--dry-run'),
     limit: Number.isFinite(limit) && limit !== null && limit > 0 ? limit : null,
-  };
-}
-
-/**
- * Split an item body into its generated summary and its authored commentary.
- *
- * The convention is fixed by the publish pipeline: the summary is a leading
- * blockquote, and anything after the first non-quoted line is the author's. A
- * body that does not start with a blockquote has no generated part at all —
- * a riff, or an essay pointer — and is left alone.
- */
-export function splitBody(content: string): { summary: string; commentary: string } {
-  const lines = content.split('\n');
-  let index = 0;
-  while (index < lines.length && /^\s*>/.test(lines[index]!)) index += 1;
-
-  if (index === 0) return { summary: '', commentary: content.trim() };
-
-  return {
-    summary: lines
-      .slice(0, index)
-      .map((line) => line.replace(/^\s*>\s?/, ''))
-      .join('\n')
-      .trim(),
-    commentary: lines.slice(index).join('\n').trim(),
   };
 }
 

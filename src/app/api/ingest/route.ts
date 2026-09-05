@@ -165,6 +165,12 @@ export async function POST(request: Request): Promise<Response> {
         title: result.item.title,
         permalink: absoluteUrl(`/i/${result.item.shortId}`),
         published_at: result.item.publishedAt.toISOString(),
+        // False when this URL was already published and the pipeline refreshed
+        // the existing item rather than forking it into a second permalink.
+        created: result.created,
+        ...(result.item.updatedAt
+          ? { updated_at: result.item.updatedAt.toISOString() }
+          : {}),
         edges_created: result.edgesCreated,
         // Disclosed so the caller knows whether a model or a fallback produced
         // what was just published (R1's provenance concern).
@@ -175,7 +181,7 @@ export async function POST(request: Request): Promise<Response> {
       2,
     ),
     {
-      status: 201,
+      status: result.created ? 201 : 200,
       headers: {
         'content-type': 'application/json; charset=utf-8',
         location: absoluteUrl(`/i/${result.item.shortId}`),
