@@ -12,7 +12,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
     "backfill": "tsx scripts/backfill.ts",
-    "test": "node --test --experimental-strip-types test/*.test.ts"
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",

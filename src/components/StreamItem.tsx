@@ -15,13 +15,16 @@ import type { Item } from '@/lib/types';
  * three cases have to degrade cleanly, because all three occur in practice.
  */
 
+export type HeadingLevel = 2 | 3 | 4;
+
 interface StreamItemProps {
   item: Item;
-  headingLevel?: 2 | 3;
+  /** Depends on how deeply the stream is nested in the host page. */
+  headingLevel?: HeadingLevel;
 }
 
 export function StreamItem({ item, headingLevel = 3 }: StreamItemProps) {
-  const Heading = headingLevel === 2 ? 'h2' : 'h3';
+  const Heading = `h${headingLevel}` as const;
 
   return (
     <article className="stream-item">
