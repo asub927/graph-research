@@ -16,6 +16,7 @@ import type { Item, Theme } from './types.ts';
  */
 
 const PERSON_ID = `${site.url}/#person`;
+const ORGANIZATION_ID = `${site.url}/#organization`;
 const WEBSITE_ID = `${site.url}/#website`;
 
 interface JsonLdNode {
@@ -36,6 +37,17 @@ export function siteGraph(): JsonLdNode[] {
       ...(site.essaysUrl ? { sameAs: [site.essaysUrl] } : {}),
     },
     {
+      // The site as a publishing entity, distinct from the person who writes
+      // it. Keeping them separate is what lets `author` and `publisher` differ
+      // on an Article without either claim being a fiction.
+      '@type': 'Organization',
+      '@id': ORGANIZATION_ID,
+      name: site.title,
+      url: `${site.url}/`,
+      description: site.tagline,
+      founder: { '@id': PERSON_ID },
+    },
+    {
       '@type': 'WebSite',
       '@id': WEBSITE_ID,
       name: site.title,
@@ -43,7 +55,7 @@ export function siteGraph(): JsonLdNode[] {
       description: site.tagline,
       inLanguage: 'en',
       author: { '@id': PERSON_ID },
-      publisher: { '@id': PERSON_ID },
+      publisher: { '@id': ORGANIZATION_ID },
       potentialAction: {
         '@type': 'SearchAction',
         target: {
@@ -108,7 +120,7 @@ export function itemGraph(item: Item): JsonLdNode[] {
       ...(item.updatedAt ? { dateModified: item.updatedAt.toISOString() } : {}),
       description: excerpt(item.content, 300),
       author: { '@id': PERSON_ID },
-      publisher: { '@id': PERSON_ID },
+      publisher: { '@id': ORGANIZATION_ID },
       isPartOf: { '@id': WEBSITE_ID },
       inLanguage: 'en',
       ...(item.tags.length > 0 ? { keywords: item.tags.join(', ') } : {}),

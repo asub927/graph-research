@@ -11,9 +11,13 @@ import { representationList } from './lib/representations.ts';
  * neither gets 406 with a plain-text list of what is on offer, rather than a
  * page it already said it could not read.
  *
- * `Vary: Accept` goes on every response, because the same URL now has two
+ * `Vary: Accept` matters here, because the same URL now has two
  * representations and a cache that does not know that will hand HTML to an
- * agent asking for Markdown.
+ * agent asking for Markdown. It is set here on the branches this function
+ * builds a response for, and declared in `next.config.ts` for the HTML branch,
+ * where the framework overwrites the header with its own router value on the
+ * way out. Agents that would rather not depend on any of that can fetch
+ * `/index.md` directly; it is advertised as `rel=alternate` in every page head.
  *
  * This is why page routes cannot be plain static files: the choice is made per
  * request. The rendered output on either branch is still cached.
@@ -32,9 +36,7 @@ export function middleware(request: NextRequest): NextResponse {
   }
 
   if (outcome === 'html') {
-    const response = NextResponse.next();
-    response.headers.set('vary', 'Accept');
-    return response;
+    return NextResponse.next();
   }
 
   // The client named types and none of them was one we serve here. Point it at

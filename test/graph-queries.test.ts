@@ -29,9 +29,11 @@ const {
   getThemeItems,
   getThemes,
   getEdgesByType,
+  getStreamPage,
   listItems,
   searchItems,
 } = await import('../src/lib/queries.ts');
+const { site } = await import('../src/lib/config.ts');
 const { pruneRedundantRelatedEdges, recomputeDerived, recomputeEdgeCounts } =
   await import('../src/lib/derive.ts');
 const { edgeTypesForSection } = await import('../src/lib/types.ts');
@@ -338,5 +340,61 @@ describe('listing and search', () => {
 
   it('returns nothing for a keyword that appears nowhere', async () => {
     assert.deepEqual(await searchItems('chromodynamics'), []);
+  });
+});
+
+/**
+ * The stream is classically paginated (R8), which the seed corpus is too small
+ * to exercise: with fewer items than one page holds, every off-by-one in the
+ * bounds arithmetic looks correct. These fixtures push it over the boundary.
+ *
+ * They are added here rather than in the shared `before` so the counts the
+ * earlier suites assert on stay untouched, and they are dated before every
+ * other fixture so they sort to the back of the stream.
+ */
+describe('stream pagination', () => {
+  const spillover = 3;
+  let totalItems = 0;
+
+  before(async () => {
+    const [{ count }] = await query<{ count: string }>(
+      `SELECT count(*) AS count FROM items WHERE status = 'published'`,
+    );
+    const existing = Number(count);
+    totalItems = site.pageSize + spillover;
+
+    for (let index = 0; index < totalItems - existing; index += 1) {
+      await addItem(`filler-${index}`, { day: '2026-07-01' });
+    }
+  });
+
+  it('fills the first page and spills the remainder onto the second', async () => {
+    const first = await getStreamPage(1);
+    assert.equal(first.totalItems, totalItems);
+    assert.equal(first.totalPages, 2);
+    assert.equal(first.items.length, site.pageSize);
+
+    const second = await getStreamPage(2);
+    assert.equal(second.items.length, spillover);
+  });
+
+  it('pages a disjoint slice, newest first', async () => {
+    const first = await getStreamPage(1);
+    const second = await getStreamPage(2);
+
+    const firstIds = new Set(first.items.map((item) => item.shortId));
+    assert.ok(second.items.every((item) => !firstIds.has(item.shortId)));
+
+    const dates = [...first.items, ...second.items].map((item) =>
+      item.publishedAt.getTime(),
+    );
+    assert.deepEqual(dates, [...dates].sort((a, b) => b - a));
+  });
+
+  it('reports a page past the end as out of bounds rather than empty', async () => {
+    // What the route turns into a 404, so a page cannot outlive its contents.
+    const beyond = await getStreamPage(3);
+    assert.equal(beyond.totalPages, 2);
+    assert.deepEqual(beyond.items, []);
   });
 });

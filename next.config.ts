@@ -60,6 +60,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Page routes have two representations (R10), so a cache keyed on URL
+        // alone would hand an agent's Markdown request the HTML it already
+        // said it did not want. Middleware sets this too, but Next replaces
+        // Vary with its own router value when it serves a prerendered page, so
+        // the durable copy has to be declared here. API and generated-file
+        // routes are excluded because each of those is a single representation.
+        source: '/:path((?!api/).*)',
+        headers: [{ key: 'Vary', value: 'Accept' }],
+      },
+      {
         // The query API is public and unauthenticated (R15), so it is explicitly
         // cross-origin readable — an agent calling it from a browser context
         // should not be blocked.
