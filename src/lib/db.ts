@@ -18,6 +18,8 @@ export interface Db {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
   /** Run one or more statements with no parameters. Used by migrations. */
   exec(sql: string): Promise<void>;
+  /** Release the connection or flush the data directory. */
+  close(): Promise<void>;
   /** Which driver is in use, for diagnostics. */
   readonly driver: 'pg' | 'pglite';
 }
@@ -35,11 +37,16 @@ class PostgresDb implements Db {
   async exec(sql: string): Promise<void> {
     await this.pool.query(sql);
   }
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
 }
 
 interface PgliteLike {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>;
   exec(sql: string): Promise<unknown>;
+  close(): Promise<void>;
 }
 
 class PgliteDb implements Db {
@@ -54,6 +61,10 @@ class PgliteDb implements Db {
 
   async exec(sql: string): Promise<void> {
     await this.client.exec(sql);
+  }
+
+  async close(): Promise<void> {
+    await this.client.close();
   }
 }
 
@@ -75,11 +86,22 @@ async function createPglite(): Promise<Db> {
     import('@electric-sql/pglite'),
     import('@electric-sql/pglite/vector'),
   ]);
-  const client = await PGlite.create({
-    dataDir: process.env.PGLITE_DATA_DIR ?? '.pgdata',
-    extensions: { vector },
-  });
-  return new PgliteDb(client as unknown as PgliteLike);
+  const dataDir = process.env.PGLITE_DATA_DIR ?? '.pgdata';
+  try {
+    const client = await PGlite.create({ dataDir, extensions: { vector } });
+    return new PgliteDb(client as unknown as PgliteLike);
+  } catch (error) {
+    // A data directory left mid-write by a process that exited without closing
+    // fails here as a bare `Aborted()` from inside the WASM runtime, with a
+    // stack trace that names only wasm frames. Say what it probably is.
+    console.error(
+      `[db] PGlite could not open ${dataDir}. If a script was interrupted, the ` +
+        'directory may be inconsistent — delete it and re-run db:migrate and ' +
+        'db:seed.',
+      error,
+    );
+    throw error;
+  }
 }
 
 // Cached on globalThis so Next.js hot reloads and repeated script runs reuse one
@@ -97,6 +119,33 @@ export function getDb(): Promise<Db> {
       : createPglite();
   }
   return globalCache.__fyiDb;
+}
+
+/**
+ * Shut the database down and drop the cached handle.
+ *
+ * Not optional for PGlite: a process that exits without closing leaves its data
+ * directory mid-write, and the next `initdb` against it aborts inside the WASM
+ * runtime with no usable diagnostic. Every script that writes has to call this
+ * before exiting — which is why they call `finish()` rather than `process.exit`.
+ */
+export async function closeDb(): Promise<void> {
+  const pending = globalCache.__fyiDb;
+  if (!pending) return;
+  globalCache.__fyiDb = undefined;
+  const db = await pending;
+  await db.close();
+}
+
+/**
+ * Close the database, then exit with the given code.
+ *
+ * Scripts end here instead of at `process.exit`, which would cut the flush off
+ * mid-write.
+ */
+export async function finish(code = 0): Promise<never> {
+  await closeDb();
+  process.exit(code);
 }
 
 /** Convenience wrapper: acquire the database and run one query. */

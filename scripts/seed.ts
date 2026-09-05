@@ -15,7 +15,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { query } from '../src/lib/db.ts';
+import { finish, query } from '../src/lib/db.ts';
 import { publishEssay, publishLink, publishRiff } from '../src/lib/publish.ts';
 import { recomputeDerived } from '../src/lib/derive.ts';
 import { isEdgeType, type EdgeType } from '../src/lib/types.ts';
@@ -361,7 +361,7 @@ async function main(): Promise<void> {
   const existing = await query<{ count: string }>('SELECT count(*) AS count FROM items');
   if (Number(existing[0]?.count ?? 0) > 0) {
     console.log('items already present; pass --reset to replace them');
-    process.exit(0);
+    await finish();
   }
 
   const idsByTitle = new Map<string, string>();
@@ -437,7 +437,7 @@ async function main(): Promise<void> {
   for (const theme of themes) {
     console.log(`  /themes/${theme.short_id}  ${theme.item_count} items  ${theme.title}`);
   }
-  process.exit(0);
+  await finish();
 }
 
 await main();

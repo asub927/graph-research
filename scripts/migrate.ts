@@ -11,7 +11,7 @@
 
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getDb } from '../src/lib/db.ts';
+import { finish, getDb } from '../src/lib/db.ts';
 import { embeddingConfig } from '../src/lib/config.ts';
 
 const MIGRATIONS_DIR = join(process.cwd(), 'db', 'migrations');
@@ -68,5 +68,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const name of skipped) console.log(`  already applied  ${name}`);
   for (const name of applied) console.log(`  applied          ${name}`);
   if (applied.length === 0) console.log('schema already up to date');
-  process.exit(0);
+  await finish();
 }
