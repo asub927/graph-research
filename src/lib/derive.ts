@@ -50,9 +50,14 @@ export function themeBudget(itemCount: number): number {
  *
  * An item is eligible once it has at least `themeHubThreshold` connections;
  * the most-connected eligible items are promoted up to the budget above.
- * `tracked_since` is set on first promotion and never rewritten, so a hub's
- * page can honestly say how long the theme has been followed. Item counts and
- * date spans are cached alongside.
+ *
+ * `tracked_since` is the hub item's publication date, not the moment the hub
+ * cleared the threshold. Promotion time is when this code noticed the theme,
+ * which is a fact about the pipeline rather than about the reading: it makes
+ * every theme in a freshly imported corpus claim to have been tracked since
+ * today, dated after the newest item in its own span. Dating it from the hub
+ * also survives a demote-and-re-promote cycle and a backfill, both of which
+ * would otherwise reset it. Item counts and date spans are cached alongside.
  *
  * Demotion matters because the budget grows with the corpus and connection
  * counts shift as edges accumulate: without it the site would keep advertising
@@ -67,8 +72,8 @@ export async function recomputeThemes(): Promise<{ promoted: number; demoted: nu
   const budget = themeBudget(Number(countRow?.count ?? 0));
 
   const promoted = await db.query<{ hub_item_id: string }>(
-    `INSERT INTO themes (hub_item_id)
-     SELECT id FROM items
+    `INSERT INTO themes (hub_item_id, tracked_since)
+     SELECT id, published_at FROM items
       WHERE status = 'published' AND edge_count >= $1
       ORDER BY edge_count DESC, published_at DESC
       LIMIT $2
