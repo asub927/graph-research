@@ -3,7 +3,7 @@ import './globals.css';
 import { Masthead } from '@/components/Masthead';
 import { SiteFooter } from '@/components/SiteFooter';
 import { site } from '@/lib/config';
-import { jsonLdScript, siteGraph } from '@/lib/seo';
+import { ALTERNATE_TYPES, jsonLdScript, siteGraph } from '@/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -13,16 +13,11 @@ export const metadata: Metadata = {
   },
   description: site.tagline,
   authors: [{ name: site.author }],
-  alternates: {
-    canonical: '/',
-    types: {
-      'application/atom+xml': '/feed.xml',
-      'application/feed+json': '/feed.json',
-      // Advertising the Markdown representation is what makes the Accept
-      // negotiation in middleware.ts discoverable (R10).
-      'text/markdown': '/index.md',
-    },
-  },
+  // Only the fallback for a route that does not call pageMetadata; that helper
+  // repeats the alternate types, because Next replaces this whole object
+  // rather than merging into it. Advertising the Markdown representation is
+  // what makes the Accept negotiation in middleware.ts discoverable (R10).
+  alternates: { canonical: '/', types: ALTERNATE_TYPES },
   openGraph: {
     type: 'website',
     siteName: site.title,

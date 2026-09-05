@@ -20,6 +20,7 @@ import {
   semanticSearchSchema,
 } from '../src/lib/api-schema.ts';
 import { splitBody } from '../scripts/backfill.ts';
+import { ALTERNATE_TYPES, pageMetadata } from '../src/lib/seo.ts';
 
 /**
  * The published contract, tested against the code that implements it.
@@ -259,6 +260,31 @@ describe('backfill body splitting', () => {
     );
     assert.equal(summary, 'The summary.');
     assert.ok(commentary.includes('> a nested quote'));
+  });
+});
+
+describe('feed discovery in page metadata', () => {
+  /**
+   * Next resolves `alternates` by replacing the layout's object rather than
+   * merging into it, so a page that declares a canonical URL drops the feed
+   * links unless the helper that builds it puts them back. That failure is
+   * invisible in the rendered page — the head simply has fewer tags.
+   */
+  it('advertises every feed alongside the canonical URL', () => {
+    const metadata = pageMetadata({
+      title: 'Themes',
+      description: 'Derived hubs.',
+      path: '/themes',
+    });
+
+    assert.equal(metadata.alternates?.canonical, 'http://localhost:3000/themes');
+    assert.deepEqual(metadata.alternates?.types, ALTERNATE_TYPES);
+    for (const mediaType of ['application/atom+xml', 'application/feed+json', 'text/markdown']) {
+      assert.ok(
+        mediaType in ALTERNATE_TYPES,
+        `${mediaType} is not advertised for discovery`,
+      );
+    }
   });
 });
 

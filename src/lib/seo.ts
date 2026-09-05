@@ -177,6 +177,20 @@ interface PageMetaOptions {
 }
 
 /**
+ * The machine-readable representations of the site, advertised in every page
+ * head so an agent that lands anywhere can find them (R11).
+ *
+ * These repeat what the root layout declares because Next resolves
+ * `alternates` by replacement, not by merge: a page that sets its own
+ * canonical would otherwise silently drop the feed discovery links.
+ */
+export const ALTERNATE_TYPES = {
+  'application/atom+xml': '/feed.xml',
+  'application/feed+json': '/feed.json',
+  'text/markdown': '/index.md',
+} as const;
+
+/**
  * Build page metadata. Titles are `Page — Site` except the home page, which is
  * the site name alone.
  */
@@ -185,7 +199,7 @@ export function pageMetadata(options: PageMetaOptions): Metadata {
   return {
     title: options.title,
     description: options.description,
-    alternates: { canonical },
+    alternates: { canonical, types: ALTERNATE_TYPES },
     ...(options.noIndex ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       type: options.type ?? 'website',
