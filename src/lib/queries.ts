@@ -250,28 +250,50 @@ export async function searchItems(keyword: string, limit = 50): Promise<Item[]> 
   return rows.map(mapItem);
 }
 
+interface SemanticSearchOptions {
+  limit?: number;
+  /** Item to leave out, so an item is never its own nearest neighbour. */
+  excludeId?: string;
+  /**
+   * Similarity below which a row is not a result at all.
+   *
+   * A pure nearest-neighbour query always returns something: ask it about
+   * anything and it hands back the least-unrelated items in the corpus, scored
+   * near zero. Reader-facing search needs a floor, because "these 14 things
+   * match nothing you asked for" is worse than "nothing matched" — it is the
+   * same answer, dressed as results. Candidate generation for the edge judge
+   * passes 0, since there the judge is the filter.
+   */
+  minScore?: number;
+}
+
 /**
  * Nearest neighbours by embedding. `<=>` is pgvector's cosine distance, so
  * similarity is `1 - distance`.
  */
 export async function semanticSearch(
   embedding: number[],
-  limit = 10,
-  excludeId?: string,
+  options: SemanticSearchOptions = {},
 ): Promise<ScoredItem[]> {
+  const { limit = 10, excludeId, minScore = 0 } = options;
+
   interface Row extends ItemRow {
     distance: unknown;
   }
+
+  const params: unknown[] = [toVector(embedding), limit, 1 - minScore];
+  if (excludeId) params.push(excludeId);
 
   const rows = await query<Row>(
     `SELECT ${ITEM_COLUMNS}, (embedding <=> $1) AS distance
        FROM items
       WHERE ${PUBLISHED}
         AND embedding IS NOT NULL
-        ${excludeId ? 'AND id <> $3' : ''}
+        AND (embedding <=> $1) <= $3
+        ${excludeId ? 'AND id <> $4' : ''}
       ORDER BY embedding <=> $1
       LIMIT $2`,
-    excludeId ? [toVector(embedding), limit, excludeId] : [toVector(embedding), limit],
+    params,
   );
 
   return rows.map((row) => ({

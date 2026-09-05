@@ -122,11 +122,12 @@ export async function connectItem(item: Item): Promise<{
     toVector(embedding),
   ]);
 
-  const neighbours = await semanticSearch(
-    embedding,
-    graphConfig.edgeCandidateCount,
-    item.id,
-  );
+  // No score floor here: the judge decides what is worth an edge, and hiding
+  // weak candidates from it would silently narrow what it can consider.
+  const neighbours = await semanticSearch(embedding, {
+    limit: graphConfig.edgeCandidateCount,
+    excludeId: item.id,
+  });
 
   if (neighbours.length === 0) return { edgesCreated: 0, edgesGenerated: false };
 

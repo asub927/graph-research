@@ -17,6 +17,15 @@ export const dynamic = 'force-dynamic';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
+/**
+ * Similarity below which a neighbour is not an answer.
+ *
+ * Nearest-neighbour search has no natural empty result: it returns the least
+ * unrelated items to any query, however unrelated those are. Without a floor
+ * a query about nothing in the corpus comes back as a full page of matches
+ * scored near zero, which reads as an answer and is not one.
+ */
+const MIN_SCORE = 0.05;
 
 export const GET = withRateLimit(async (request: Request) => {
   const url = new URL(request.url);
@@ -47,7 +56,7 @@ export const GET = withRateLimit(async (request: Request) => {
     : DEFAULT_LIMIT;
 
   const embedding = await embed(query);
-  const items = await semanticSearch(embedding, limit);
+  const items = await semanticSearch(embedding, { limit, minScore: MIN_SCORE });
 
   return jsonResponse(
     {

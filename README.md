@@ -25,6 +25,11 @@ loads the same `vector` extension and speaks the same SQL, storing its data
 under `.pgdata/`. Set `DATABASE_URL` and the identical queries run against real
 Postgres.
 
+One consequence of PGlite being in-process: `.pgdata/` takes a single writer,
+so `npm run build` fails to read the database while `npm run dev` or
+`npm start` is still holding it. Stop the server first. This is a local-only
+constraint — nothing about it applies to a `DATABASE_URL` deployment.
+
 Without `LLM_API_KEY` the pipeline still works end to end: summaries become
 extractive and edges fall back to term overlap. Every surface that depends on
 either says which one it got, rather than presenting a degraded result as a

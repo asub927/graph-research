@@ -20,7 +20,7 @@ delete process.env.DATABASE_URL;
 // Keep the promotion floor low so small fixtures can produce hubs.
 process.env.THEME_HUB_THRESHOLD = '2';
 
-const { query } = await import('../src/lib/db.ts');
+const { query, toVector } = await import('../src/lib/db.ts');
 const { migrate } = await import('../scripts/migrate.ts');
 const {
   getConnections,
@@ -32,8 +32,9 @@ const {
   getStreamPage,
   listItems,
   searchItems,
+  semanticSearch,
 } = await import('../src/lib/queries.ts');
-const { site } = await import('../src/lib/config.ts');
+const { embeddingConfig, site } = await import('../src/lib/config.ts');
 const { pruneRedundantRelatedEdges, recomputeDerived, recomputeEdgeCounts } =
   await import('../src/lib/derive.ts');
 const { edgeTypesForSection } = await import('../src/lib/types.ts');
@@ -340,6 +341,70 @@ describe('listing and search', () => {
 
   it('returns nothing for a keyword that appears nowhere', async () => {
     assert.deepEqual(await searchItems('chromodynamics'), []);
+  });
+});
+
+/**
+ * Nearest-neighbour search has no natural empty result: it returns the least
+ * unrelated rows for any query at all. Reader-facing search needs a floor, or
+ * a question the corpus cannot answer comes back looking answered.
+ */
+describe('semantic search score floor', () => {
+  /** A unit vector pointing along one axis, so similarities are predictable. */
+  function axisVector(axis: number): number[] {
+    const vector = new Array<number>(embeddingConfig.dimensions).fill(0);
+    vector[axis] = 1;
+    return vector;
+  }
+
+  before(async () => {
+    await addItem('near-vector', { day: '2026-06-01' });
+    await addItem('orthogonal-vector', { day: '2026-06-02' });
+
+    await query('UPDATE items SET embedding = $2 WHERE id = $1', [
+      idOf('near-vector'),
+      toVector(axisVector(0)),
+    ]);
+    await query('UPDATE items SET embedding = $2 WHERE id = $1', [
+      idOf('orthogonal-vector'),
+      toVector(axisVector(1)),
+    ]);
+  });
+
+  it('returns an orthogonal item only when there is no floor', async () => {
+    const unfiltered = await semanticSearch(axisVector(0), { limit: 10 });
+    const titles = unfiltered.map((item) => item.title);
+    assert.ok(titles.includes('near-vector'));
+    assert.ok(titles.includes('orthogonal-vector'));
+
+    // Cosine similarity between orthogonal unit vectors is 0, so any floor
+    // above it drops the row rather than presenting it as a match.
+    const scored = unfiltered.find((item) => item.title === 'orthogonal-vector');
+    assert.ok(scored);
+    assert.ok(scored.score < 0.05, `expected a near-zero score, got ${scored.score}`);
+  });
+
+  it('drops everything below the floor', async () => {
+    const filtered = await semanticSearch(axisVector(0), {
+      limit: 10,
+      minScore: 0.05,
+    });
+    const titles = filtered.map((item) => item.title);
+    assert.ok(titles.includes('near-vector'));
+    assert.ok(!titles.includes('orthogonal-vector'));
+  });
+
+  it('can return nothing at all, which is what makes the empty state real', async () => {
+    const none = await semanticSearch(axisVector(2), { limit: 10, minScore: 0.05 });
+    assert.deepEqual(none, []);
+  });
+
+  it('never returns the item a query was generated from', async () => {
+    const neighbours = await semanticSearch(axisVector(0), {
+      limit: 10,
+      excludeId: idOf('near-vector'),
+    });
+    assert.ok(!neighbours.some((item) => item.title === 'near-vector'));
   });
 });
 
