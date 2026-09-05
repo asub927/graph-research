@@ -10,3 +10,6 @@ next-env.d.ts
 .vercel
 .pgdata/
 .DS_Store
+
+# Playwright MCP scratch output
+.playwright-mcp/

@@ -11,9 +11,14 @@ import type { NextConfig } from 'next';
  * plugins, no framing, no base-tag rewriting, and no outbound connections
  * beyond this origin.
  */
+const isDev = process.env.NODE_ENV === 'development';
+
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // `unsafe-eval` is development-only: the dev server's hot-reload runtime
+  // evaluates strings, and without it the whole client bundle fails to boot.
+  // It is never sent in production.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
