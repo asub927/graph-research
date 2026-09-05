@@ -9,9 +9,10 @@ import type { Item, Theme } from './types.ts';
  *
  * The reference site emits one byte-identical JSON-LD `@graph` on every page
  * and gives item and theme pages no structured data of their own. Here the
- * site-level graph is the shared base and each resource type adds its own
+ * layout emits the site-level graph once and each resource type layers its own
  * entity on top (R18), so an item is discoverable as an `Article` and a theme
- * as a `CollectionPage`.
+ * as a `CollectionPage`. The page-level nodes reference the site entities by
+ * `@id` rather than repeating them.
  */
 
 const PERSON_ID = `${site.url}/#person`;
@@ -98,7 +99,6 @@ export function siteGraph(): JsonLdNode[] {
 export function itemGraph(item: Item): JsonLdNode[] {
   const url = absoluteUrl(`/i/${item.shortId}`);
   return [
-    ...siteGraph(),
     {
       '@type': 'Article',
       '@id': `${url}#article`,
@@ -123,7 +123,6 @@ export function itemGraph(item: Item): JsonLdNode[] {
 export function themeGraph(theme: Theme, items: readonly Item[]): JsonLdNode[] {
   const url = absoluteUrl(`/themes/${theme.shortId}`);
   return [
-    ...siteGraph(),
     {
       '@type': 'CollectionPage',
       '@id': `${url}#collection`,

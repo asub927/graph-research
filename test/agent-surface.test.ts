@@ -19,6 +19,7 @@ import {
   problemSchema,
   semanticSearchSchema,
 } from '../src/lib/api-schema.ts';
+import { splitBody } from '../scripts/backfill.ts';
 
 /**
  * The published contract, tested against the code that implements it.
@@ -223,6 +224,41 @@ describe('content negotiation', () => {
     assert.equal(negotiate('image/png, image/webp'), 'unacceptable');
     // q=0 is a refusal, not a preference.
     assert.equal(negotiate('text/html;q=0, application/pdf'), 'unacceptable');
+  });
+});
+
+describe('backfill body splitting', () => {
+  /**
+   * The backfill has to replace the generated summary without touching the
+   * commentary underneath it. Getting the boundary wrong either discards what
+   * the author wrote or re-summarises their words back at them.
+   */
+  it('separates the generated summary from the author commentary', () => {
+    const { summary, commentary } = splitBody(
+      '> First line of the summary.\n> Second line.\n\nAnd what I made of it.',
+    );
+    assert.equal(summary, 'First line of the summary.\nSecond line.');
+    assert.equal(commentary, 'And what I made of it.');
+  });
+
+  it('treats a body with no leading blockquote as entirely authored', () => {
+    const { summary, commentary } = splitBody('A riff, written here.\n\nSecond para.');
+    assert.equal(summary, '');
+    assert.equal(commentary, 'A riff, written here.\n\nSecond para.');
+  });
+
+  it('handles a summary with no commentary after it', () => {
+    const { summary, commentary } = splitBody('> Just the summary.');
+    assert.equal(summary, 'Just the summary.');
+    assert.equal(commentary, '');
+  });
+
+  it('does not mistake a later blockquote for part of the summary', () => {
+    const { summary, commentary } = splitBody(
+      '> The summary.\n\nMy take, which quotes them back:\n\n> a nested quote',
+    );
+    assert.equal(summary, 'The summary.');
+    assert.ok(commentary.includes('> a nested quote'));
   });
 });
 

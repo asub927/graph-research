@@ -406,8 +406,8 @@ async function main(): Promise<void> {
       continue;
     }
     const rows = await query<{ id: string }>(
-      `INSERT INTO edges (id, from_id, to_id, type, confidence, reason)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO edges (id, from_id, to_id, type, confidence, reason, origin)
+       VALUES ($1, $2, $3, $4, $5, $6, 'asserted')
        ON CONFLICT (from_id, to_id, type) DO NOTHING
        RETURNING id`,
       [randomUUID(), fromId, toId, edge.type, edge.confidence, edge.reason],

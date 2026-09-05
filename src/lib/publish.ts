@@ -102,8 +102,13 @@ async function insertItem(input: InsertItemInput): Promise<Item> {
 /**
  * Embed the item, then propose and persist edges to its nearest neighbours.
  * Returns the number of edges actually written.
+ *
+ * Exported for the backfill, which re-runs exactly this step across the whole
+ * corpus after a prompt or model change. Everything it writes is marked
+ * `origin = 'generated'`, which is what makes that rebuild safe: the backfill
+ * clears the previous pass without touching edges asserted by hand.
  */
-async function connectItem(item: Item): Promise<{
+export async function connectItem(item: Item): Promise<{
   edgesCreated: number;
   edgesGenerated: boolean;
 }> {
@@ -142,8 +147,8 @@ async function connectItem(item: Item): Promise<{
   let edgesCreated = 0;
   for (const proposal of selected) {
     const rows = await query<{ id: string }>(
-      `INSERT INTO edges (id, from_id, to_id, type, confidence, reason)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO edges (id, from_id, to_id, type, confidence, reason, origin)
+       VALUES ($1, $2, $3, $4, $5, $6, 'generated')
        ON CONFLICT (from_id, to_id, type) DO NOTHING
        RETURNING id`,
       [

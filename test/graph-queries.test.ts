@@ -66,12 +66,26 @@ async function addItem(
   );
 }
 
-async function addEdge(from: string, to: string, type: string, confidence = 0.8) {
+async function addEdge(
+  from: string,
+  to: string,
+  type: string,
+  confidence = 0.8,
+  origin: 'generated' | 'asserted' = 'generated',
+) {
   await query(
-    `INSERT INTO edges (id, from_id, to_id, type, confidence, reason)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO edges (id, from_id, to_id, type, confidence, reason, origin)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (from_id, to_id, type) DO NOTHING`,
-    [randomUUID(), idOf(from), idOf(to), type, confidence, `Because of ${type}.`],
+    [
+      randomUUID(),
+      idOf(from),
+      idOf(to),
+      type,
+      confidence,
+      `Because of ${type}.`,
+      origin,
+    ],
   );
 }
 
@@ -278,6 +292,23 @@ describe('redundant edge pruning', () => {
       pairs.some(
         (pair) => pair.from.title === 'a-neighbour' && pair.to.title === 'hub-a',
       ),
+    );
+  });
+
+  it('leaves a hand-asserted related_to alone even when it is redundant', async () => {
+    // Same shape as the first case, but asserted rather than generated. The
+    // prune is a cleanup of the pipeline's own output and has no business
+    // overruling a link someone made deliberately.
+    await addEdge('b-supporter-1', 'hub-b', 'related_to', 0.6, 'asserted');
+    await pruneRedundantRelatedEdges();
+
+    const connections = await getConnections(idOf('hub-b'));
+    const toSupporter = connections.filter(
+      (edge) => edge.otherTitle === 'b-supporter-1',
+    );
+    assert.deepEqual(
+      toSupporter.map((edge) => edge.type).sort(),
+      ['related_to', 'supports'],
     );
   });
 });

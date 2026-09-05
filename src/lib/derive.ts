@@ -130,12 +130,16 @@ export async function recomputeThemes(): Promise<{ promoted: number; demoted: nu
  * nothing and actively hurts the page: the pair renders twice, the second time
  * under a vaguer heading with a weaker reason. The generic edge is the one that
  * goes, in either direction, because direction does not matter for relatedness.
+ *
+ * Only generated edges are pruned. A `related_to` someone asserted by hand was
+ * a decision, and this pass is not entitled to overrule it.
  */
 export async function pruneRedundantRelatedEdges(): Promise<number> {
   const db = await getDb();
   const removed = await db.query<{ id: string }>(`
     DELETE FROM edges
       WHERE type = 'related_to'
+        AND origin = 'generated'
         AND EXISTS (
           SELECT 1 FROM edges other
            WHERE other.type <> 'related_to'
